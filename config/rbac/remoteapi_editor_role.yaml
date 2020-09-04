@@ -1,0 +1,24 @@
+# permissions for end users to edit remoteapis.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: remoteapi-editor-role
+rules:
+- apiGroups:
+  - catapult.thetechnick.ninja
+  resources:
+  - remoteapis
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - catapult.thetechnick.ninja
+  resources:
+  - remoteapis/status
+  verbs:
+  - get

@@ -1,0 +1,7 @@
+apiVersion: catapult.thetechnick.ninja/v1alpha1
+kind: RemoteAPI
+metadata:
+  name: remoteapi-sample
+spec:
+  # Add fields here
+  foo: bar

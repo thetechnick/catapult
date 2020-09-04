@@ -1,0 +1,10 @@
+domain: thetechnick.ninja
+repo: github.com/thetechnick/catapult
+resources:
+- group: catapult
+  kind: ServiceCluster
+  version: v1alpha1
+- group: catapult
+  kind: RemoteAPI
+  version: v1alpha1
+version: "2"
