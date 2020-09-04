@@ -1,7 +1,7 @@
 apiVersion: catapult.thetechnick.ninja/v1alpha1
 kind: ServiceCluster
 metadata:
-  name: servicecluster-sample
+  name: remotecluster-sample
 spec:
   # Add fields here
   foo: bar

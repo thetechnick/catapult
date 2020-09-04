@@ -34,12 +34,12 @@ type ServiceClusterReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=catapult.thetechnick.ninja,resources=serviceclusters,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=catapult.thetechnick.ninja,resources=serviceclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=catapult.thetechnick.ninja,resources=remoteclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=catapult.thetechnick.ninja,resources=remoteclusters/status,verbs=get;update;patch
 
 func (r *ServiceClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("servicecluster", req.NamespacedName)
+	_ = r.Log.WithValues("remotecluster", req.NamespacedName)
 
 	// your logic here
 

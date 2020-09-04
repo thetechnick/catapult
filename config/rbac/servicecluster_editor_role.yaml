@@ -1,13 +1,13 @@
-# permissions for end users to edit serviceclusters.
+# permissions for end users to edit remoteclusters.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: servicecluster-editor-role
+  name: remotecluster-editor-role
 rules:
 - apiGroups:
   - catapult.thetechnick.ninja
   resources:
-  - serviceclusters
+  - remoteclusters
   verbs:
   - create
   - delete
@@ -19,6 +19,6 @@ rules:
 - apiGroups:
   - catapult.thetechnick.ninja
   resources:
-  - serviceclusters/status
+  - remoteclusters/status
   verbs:
   - get
