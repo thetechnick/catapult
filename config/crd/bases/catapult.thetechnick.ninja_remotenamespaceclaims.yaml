@@ -6,7 +6,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.9
   creationTimestamp: null
-  name: remoteclusters.catapult.thetechnick.ninja
+  name: remotenamespaceclaims.catapult.thetechnick.ninja
 spec:
   additionalPrinterColumns:
   - JSONPath: .metadata.creationTimestamp
@@ -16,17 +16,17 @@ spec:
   names:
     categories:
     - catapult
-    kind: RemoteCluster
-    listKind: RemoteClusterList
-    plural: remoteclusters
+    kind: RemoteNamespaceClaim
+    listKind: RemoteNamespaceClaimList
+    plural: remotenamespaceclaims
     shortNames:
-    - rc
-    singular: remotecluster
+    - rnc
+    singular: remotenamespaceclaim
   scope: Namespaced
   subresources: {}
   validation:
     openAPIV3Schema:
-      description: RemoteCluster is a local handle for an external Kubernetes cluster
+      description: RemoteNamespaceClaim is a user's request to bind to an RemoteNamespace.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -38,19 +38,31 @@ spec:
             object represents. Servers may infer this from the endpoint the client
             submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
-        kubeconfigSecret:
-          description: KubeconfigSecret references a secret in the 'catapult-system'
-            namespace that contains a kubeconfig to connect to the remote cluster
-          properties:
-            name:
-              type: string
-          required:
-          - name
-          type: object
         metadata:
           type: object
-      required:
-      - kubeconfigSecret
+        spec:
+          description: RemoteNamespaceClaimSpec defines the desired state of RemoteNamespaceClaim.
+          properties:
+            remoteCluster:
+              description: RemoteCluster this claim is targeting.
+              properties:
+                name:
+                  type: string
+              required:
+              - name
+              type: object
+            remoteNamespace:
+              description: RemoteNamespace this Claim is bound to. Must be set when
+                the Claim is Bound.
+              properties:
+                name:
+                  type: string
+              required:
+              - name
+              type: object
+          required:
+          - remoteCluster
+          type: object
       type: object
   version: v1alpha1
   versions:

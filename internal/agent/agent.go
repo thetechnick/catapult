@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package operator
+package agent
 
 import (
 	"flag"
@@ -27,8 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	catapultv1alpha1 "github.com/thetechnick/catapult/api/v1alpha1"
-	"github.com/thetechnick/catapult/pkg/operator/internal/controllers"
+	"github.com/thetechnick/catapult/internal/agent/controllers"
 )
 
 type flags struct {
@@ -36,6 +35,9 @@ type flags struct {
 	enableLeaderElection    bool
 	certDir                 string
 	developmentLogger       bool
+
+	kind, version, group string
+	remoteNamespaces     string
 }
 
 var (
@@ -45,7 +47,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(catapultv1alpha1.AddToScheme(scheme))
 }
 
 func Run() {
@@ -60,10 +61,16 @@ func run() error {
 	flags := &flags{}
 	flag.StringVar(&flags.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&flags.healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
-	flag.StringVar(&flags.certDir, "cert-dir", "/tmp/k8s-webhook-server/serving-certs", "The webhook TLS certificates directory")
+	flag.StringVar(&flags.certDir, "cert-dir", "/tmp/k8s-webhook-server/serving-certs", "The webhook TLS certificates directory.")
 	flag.BoolVar(&flags.enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for operator. Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&flags.developmentLogger, "developmentLogger", false, "enables the development logger instead of the production logger (more verbosity, text instead of json).")
+
+	flag.StringVar(&flags.kind, "kind", "", "Type Kind.")
+	flag.StringVar(&flags.group, "group", "", "Type API Group.")
+	flag.StringVar(&flags.version, "version", "", "Type API Version.")
+	flag.StringVar(&flags.remoteNamespaces, "remote-namespace", "", "Namespaces in the remote cluster to watch and sync to.")
+
 	flag.Parse()
 
 	// Logger
@@ -75,18 +82,26 @@ func run() error {
 		MetricsBindAddress: flags.metricsAddr,
 		Port:               9443,
 		LeaderElection:     flags.enableLeaderElection,
-		LeaderElectionID:   "catapult.thetechnick.ninja",
+		LeaderElectionID:   flags.kind + ".catapult.thetechnick.ninja",
 	})
 	if err != nil {
 		return fmt.Errorf("unable to start manager: %w", err)
 	}
 
-	if err = (&controllers.RemoteAPIReconciler{
+	if err = (&controllers.SyncReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("RemoteAPI"),
+		Log:    ctrl.Log.WithName("controllers").WithName("SyncReconciler"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to create RemoteAPI controller: %w", err)
+		return fmt.Errorf("unable to create SyncReconciler controller: %w", err)
+	}
+
+	if err = (&controllers.AdoptionReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("AdoptionReconciler"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create AdoptionReconciler controller: %w", err)
 	}
 
 	setupLog.Info("starting manager")

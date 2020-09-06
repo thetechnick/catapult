@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/thetechnick/catapult/pkg/operator"
+	"github.com/thetechnick/catapult/internal/operator"
 )
 
 func main() {

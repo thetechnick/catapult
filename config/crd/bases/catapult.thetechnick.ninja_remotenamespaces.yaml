@@ -1,0 +1,136 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.9
+  creationTimestamp: null
+  name: remotenamespaces.catapult.thetechnick.ninja
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.claim.name
+    name: Claim
+    type: string
+  - JSONPath: .status.phase
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  group: catapult.thetechnick.ninja
+  names:
+    categories:
+    - vedette
+    kind: RemoteNamespace
+    listKind: RemoteNamespaceList
+    plural: remotenamespaces
+    shortNames:
+    - ii
+    singular: remotenamespace
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: RemoteNamespace is the Schema for the interfaceinstances API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: RemoteNamespaceSpec defines the desired state of RemoteNamespace.
+          properties:
+            claim:
+              description: Back-Reference to the Claim binding to this instance. Must
+                be set if Bound.
+              properties:
+                name:
+                  type: string
+              required:
+              - name
+              type: object
+            remoteCluster:
+              description: RemoteCluster this namespace belongs to.
+              properties:
+                name:
+                  type: string
+              required:
+              - name
+              type: object
+            remoteNamespaceName:
+              description: Name of the Namespace in the RemoteCluster.
+              type: string
+          required:
+          - remoteCluster
+          - remoteNamespaceName
+          type: object
+        status:
+          description: RemoteNamespaceStatus defines the observed state of RemoteNamespace.
+          properties:
+            conditions:
+              description: Current conditions that apply to this instance.
+              items:
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time the condition
+                      transits from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is the human readable message indicating
+                      details about last transition.
+                    type: string
+                  reason:
+                    description: Reason is the (brief) reason for the condition's
+                      last transition.
+                    type: string
+                  status:
+                    description: Status is the status of the condition, one of ('True',
+                      'False', 'Unknown').
+                    type: string
+                  type:
+                    description: Type is the type of the RemoteNamespace condition.
+                    type: string
+                required:
+                - lastTransitionTime
+                - message
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+            observedGeneration:
+              description: ObservedGeneration is the most recent generation observed
+                by the controller.
+              format: int64
+              type: integer
+            phase:
+              description: DEPRECATED. Phase represents the current lifecycle state
+                of this object. Consider this field DEPRECATED, it will be removed
+                as soon as there is a mechanism to map conditions to strings when
+                printing the property. This is only for display purpose, for everything
+                else use conditions.
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

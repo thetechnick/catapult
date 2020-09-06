@@ -4,6 +4,8 @@
 resources:
 - bases/catapult.thetechnick.ninja_remoteclusters.yaml
 - bases/catapult.thetechnick.ninja_remoteapis.yaml
+- bases/catapult.thetechnick.ninja_remotenamespaces.yaml
+- bases/catapult.thetechnick.ninja_remotenamespaceclaims.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

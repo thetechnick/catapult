@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/thetechnick/catapult/pkg/agent"
+	"github.com/thetechnick/catapult/internal/agent"
 )
 
 func main() {
