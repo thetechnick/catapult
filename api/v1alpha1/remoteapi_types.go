@@ -135,6 +135,7 @@ const (
 
 // RemoteAPI configures the use of an API from a remote kubernetes cluster.
 // +kubebuilder:object:root=true
+// +kubebuilder:scope=Cluster
 // +kubebuilder:printcolumn:name="Remote Cluster",type="string",JSONPath=".spec.remoteCluster.name"
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"

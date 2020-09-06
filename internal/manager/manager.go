@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package operator
+package manager
 
 import (
 	"flag"
@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	catapultv1alpha1 "github.com/thetechnick/catapult/api/v1alpha1"
-	"github.com/thetechnick/catapult/internal/operator/controllers"
+	"github.com/thetechnick/catapult/internal/manager/controllers"
 )
 
 type flags struct {

@@ -27,6 +27,8 @@ type RemoteNamespaceClaimSpec struct {
 	// RemoteNamespace this Claim is bound to.
 	// Must be set when the Claim is Bound.
 	RemoteNamespace *ObjectReference `json:"remoteNamespace,omitempty"`
+	// LocalNamespace in this cluster.
+	LocalNamespace ObjectReference `json:"localNamespace"`
 }
 
 // RemoteNamespaceClaimStatus defines the observed state of RemoteNamespaceClaim.
@@ -131,6 +133,7 @@ const (
 
 // RemoteNamespaceClaim is a user's request to bind to an RemoteNamespace.
 // +kubebuilder:object:root=true
+// +kubebuilder:scope=Cluster
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:shortName=rnc,categories=catapult
 type RemoteNamespaceClaim struct {

@@ -17,9 +17,9 @@ limitations under the License.
 package main
 
 import (
-	"github.com/thetechnick/catapult/internal/operator"
+	"github.com/thetechnick/catapult/internal/manager"
 )
 
 func main() {
-	operator.Run()
+	manager.Run()
 }

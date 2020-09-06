@@ -22,6 +22,7 @@ import (
 
 // RemoteCluster is a local handle for an external Kubernetes cluster
 // +kubebuilder:object:root=true
+// +kubebuilder:scope=Cluster
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:shortName=rc,categories=catapult
 type RemoteCluster struct {
