@@ -89,6 +89,22 @@ func run() error {
 		return fmt.Errorf("unable to create RemoteAPI controller: %w", err)
 	}
 
+	if err = (&controllers.RemoteNamespaceReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("RemoteNamespace"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create RemoteNamespace controller: %w", err)
+	}
+
+	if err = (&controllers.RemoteNamespaceClaimReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("RemoteNamespaceClaim"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create RemoteNamespaceClaim controller: %w", err)
+	}
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		return fmt.Errorf("error running manager: %w", err)

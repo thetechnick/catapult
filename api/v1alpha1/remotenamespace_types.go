@@ -27,13 +27,14 @@ type RemoteNamespaceSpec struct {
 	// Back-Reference to the Claim binding to this RemoteNamespace.
 	// Must be set if Bound.
 	Claim *ObjectReference `json:"claim,omitempty"`
-	// Name of the Namespace in the RemoteCluster.
-	RemoteNamespaceName *string `json:"remoteNamespaceName,omitempty"`
 	// RemoteCluster this namespace belongs to.
 	RemoteCluster ObjectReference `json:"remoteCluster"`
 	// What happens with this RemoteNamespace after it is released from a Claim.
 	// +kubebuilder:default=Delete
 	ReclaimPolicy RemoteNamespaceReclaimPolicy `json:"reclaimPolicy,omitempty"`
+
+	// Reference to the Namespace in the RemoteCluster
+	NamespaceInRemoteCluster *ObjectReference `json:"namespaceInRemoteCluster,omitempty"`
 }
 
 type RemoteNamespaceReclaimPolicy string
@@ -163,7 +164,7 @@ const (
 	RemoteNamespaceAvailable RemoteNamespaceConditionType = "Available"
 )
 
-// RemoteNamespace is the Schema for the interfaceinstances API
+// RemoteNamespace maps a
 // +kubebuilder:object:root=true
 // +kubebuilder:scope=Cluster
 // +kubebuilder:subresource:status

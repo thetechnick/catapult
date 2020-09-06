@@ -53,8 +53,8 @@ func (r *RemoteNamespaceClaimReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	log := r.Log.WithValues("interfaceclaim", req.NamespacedName)
 
 	remoteNamespaceClient := &catapultv1alpha1.RemoteNamespaceClaim{}
-	if k8serrors.IsNotFound(r.Get(ctx, req.NamespacedName, remoteNamespaceClient)) {
-		return ctrl.Result{}, nil
+	if err := r.Get(ctx, req.NamespacedName, remoteNamespaceClient); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Step 1:

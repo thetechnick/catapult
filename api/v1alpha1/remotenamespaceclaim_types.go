@@ -29,8 +29,8 @@ type RemoteNamespaceClaimSpec struct {
 	// RemoteNamespace this Claim is bound to.
 	// Must be set when the Claim is Bound.
 	RemoteNamespace *ObjectReference `json:"remoteNamespace,omitempty"`
-	// LocalNamespace in this cluster.
-	LocalNamespace ObjectReference `json:"localNamespace"`
+	// Reference to the Namespace in this cluster.
+	LocalNamespace ObjectReference `json:"localNamespace,omitempty"`
 }
 
 // RemoteNamespaceClaimStatus defines the observed state of RemoteNamespaceClaim.

@@ -18,35 +18,151 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	catapultv1alpha1 "github.com/thetechnick/catapult/api/v1alpha1"
+	"github.com/thetechnick/catapult/internal/owner"
 )
 
 // AdoptionReconciler reconciles a Sync object
 type AdoptionReconciler struct {
+	Log logr.Logger
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	RemoteClusterName string
+	RemoteClient      client.Client
+	RemoteCache       cache.Cache
+	ObjectGVK         schema.GroupVersionKind
 }
 
-// +kubebuilder:rbac:groups=catapult.thetechnick.ninja,resources=remoteapis,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=catapult.thetechnick.ninja,resources=remoteapis/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=catapult.thetechnick.ninja,resources=remotenamespaces,verbs=get;list;watch
 
 func (r *AdoptionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
+	ctx := context.Background()
 	_ = r.Log.WithValues("remoteapi", req.NamespacedName)
 
-	// your logic here
+	obj := r.newObject()
+	if err := r.RemoteClient.Get(ctx, req.NamespacedName, obj); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	if owner.IsOwned(obj) ||
+		!obj.GetDeletionTimestamp().IsZero() {
+		// the object is already owned or was deleted, so we don't want to do anything.
+		// otherwise we might recreate the owning object preventing the deletion of this instance.
+		return ctrl.Result{}, nil
+	}
+
+	// Check RemoteNamespace to find the local namespace
+	remoteNamespaceList, err := catapultv1alpha1.ListRemoteNamespaceByRemoteNamespaceName(ctx, r.Client, obj.GetNamespace())
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("getting RemoteNamespace: %w", err)
+	}
+	var remoteNamespace *catapultv1alpha1.RemoteNamespace
+	for _, rns := range remoteNamespaceList.Items {
+		if rns.Spec.RemoteCluster.Name == r.RemoteClusterName {
+			remoteNamespace = &rns
+			break
+		}
+	}
+	if remoteNamespace == nil {
+		return ctrl.Result{}, fmt.Errorf("RemoteNamespace not found")
+	}
+	if remoteNamespace.Status.GetCondition(
+		catapultv1alpha1.RemoteNamespaceBound).Status == catapultv1alpha1.ConditionTrue && remoteNamespace.Spec.Claim != nil {
+		return ctrl.Result{}, fmt.Errorf("RemoteNamespace %s not bound", remoteNamespace.Name)
+	}
+	remoteNamespaceClaim := &catapultv1alpha1.RemoteNamespaceClaim{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Name: remoteNamespace.Spec.Claim.Name,
+	}, remoteNamespaceClaim); err != nil {
+		return ctrl.Result{}, fmt.Errorf("getting RemoteNamespaceClaim: %w", err)
+	}
+
+	// Reconcile new object owner
+	desiredObject := obj.DeepCopy()
+	desiredObject.SetNamespace(remoteNamespaceClaim.Spec.LocalNamespace.Name)
+	desiredObject.SetOwnerReferences(nil)
+
+	currentObj := r.newObject()
+	err = r.Get(ctx, types.NamespacedName{
+		Name:      desiredObject.GetName(),
+		Namespace: desiredObject.GetNamespace(),
+	}, currentObj)
+	if err != nil && !errors.IsNotFound(err) {
+		return ctrl.Result{}, fmt.Errorf("getting %s: %w", r.ObjectGVK.Kind, err)
+	}
+	if errors.IsNotFound(err) {
+		if err := r.Create(ctx, desiredObject); err != nil {
+			return ctrl.Result{}, fmt.Errorf("creating %s: %w", r.ObjectGVK.Kind, err)
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
 
 func (r *AdoptionReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// return ctrl.NewControllerManagedBy(mgr).
-	// 	For(&catapultv1alpha1.Sync{}).
-	// 	Complete(r)
-	return nil
+	c, err := controller.New(
+		strings.ToLower(r.ObjectGVK.Kind),
+		mgr, controller.Options{
+			Reconciler: r,
+		})
+	if err != nil {
+		return fmt.Errorf("creating controller: %w", err)
+	}
+
+	return c.Watch(
+		source.NewKindWithCache(r.newObject(), r.RemoteCache),
+		&handler.EnqueueRequestForObject{},
+		PredicateFn(func(obj runtime.Object) bool {
+			// we are only interested in unowned objects
+			meta, ok := obj.(metav1.Object)
+			if !ok {
+				return false
+			}
+			return !owner.IsOwned(meta)
+		}))
 }
+
+func (r *AdoptionReconciler) newObject() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(r.ObjectGVK)
+	return obj
+}
+
+type PredicateFn func(obj runtime.Object) bool
+
+func (p PredicateFn) Create(ev event.CreateEvent) bool {
+	return p(ev.Object)
+}
+
+func (p PredicateFn) Delete(ev event.DeleteEvent) bool {
+	return p(ev.Object)
+}
+
+func (p PredicateFn) Update(ev event.UpdateEvent) bool {
+	return p(ev.ObjectNew)
+}
+
+func (p PredicateFn) Generic(ev event.GenericEvent) bool {
+	return p(ev.Object)
+}
+
+var _ predicate.Predicate = (PredicateFn)(nil)

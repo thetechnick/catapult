@@ -48,8 +48,8 @@ func (r *RemoteNamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, er
 	_ = r.Log.WithValues("remoteapi", req.NamespacedName)
 
 	remoteNamespace := &catapultv1alpha1.RemoteNamespace{}
-	if errors.IsNotFound(r.Get(ctx, req.NamespacedName, remoteNamespace)) {
-		return ctrl.Result{}, nil
+	if err := r.Get(ctx, req.NamespacedName, remoteNamespace); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Check for deletion
