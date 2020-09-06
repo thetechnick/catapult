@@ -22,6 +22,8 @@ import (
 
 // RemoteNamespaceClaimSpec defines the desired state of RemoteNamespaceClaim.
 type RemoteNamespaceClaimSpec struct {
+	// Limit available RemoteNamespaces for binding.
+	Selector metav1.LabelSelector `json:"selector,omitempty"`
 	// RemoteCluster this claim is targeting.
 	RemoteCluster ObjectReference `json:"remoteCluster"`
 	// RemoteNamespace this Claim is bound to.
@@ -140,7 +142,8 @@ type RemoteNamespaceClaim struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec RemoteNamespaceClaimSpec `json:"spec,omitempty"`
+	Spec   RemoteNamespaceClaimSpec   `json:"spec,omitempty"`
+	Status RemoteNamespaceClaimStatus `json:"status,omitempty"`
 }
 
 // RemoteNamespaceClaimList contains a list of RemoteNamespaceClaim

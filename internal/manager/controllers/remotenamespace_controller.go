@@ -33,8 +33,6 @@ import (
 	catapultv1alpha1 "github.com/thetechnick/catapult/api/v1alpha1"
 )
 
-const claimLabel = "catapult.thetechnick.ninja/claim"
-
 // RemoteNamespaceReconciler reconciles a RemoteNamespace object.
 type RemoteNamespaceReconciler struct {
 	client.Client
