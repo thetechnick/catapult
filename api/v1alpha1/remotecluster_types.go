@@ -22,9 +22,9 @@ import (
 
 // RemoteCluster is a local handle for an external Kubernetes cluster
 // +kubebuilder:object:root=true
-// +kubebuilder:scope=Cluster
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:shortName=rc,categories=catapult
+// +kubebuilder:resource:shortName=rc,categories=catapult,scope=Cluster
 type RemoteCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

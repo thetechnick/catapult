@@ -71,6 +71,8 @@ func Run() {
 }
 
 func run() error {
+	ctrl.SetLogger(zap.Logger(true))
+
 	// Flags
 	flags := &flags{}
 	flag.StringVar(&flags.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -78,13 +80,13 @@ func run() error {
 	flag.StringVar(&flags.certDir, "cert-dir", "/tmp/k8s-webhook-server/serving-certs", "The webhook TLS certificates directory.")
 	flag.BoolVar(&flags.enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for operator. Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&flags.developmentLogger, "developmentLogger", false, "enables the development logger instead of the production logger (more verbosity, text instead of json).")
+	flag.BoolVar(&flags.developmentLogger, "developmentLogger", true, "enables the development logger instead of the production logger (more verbosity, text instead of json).")
 
 	flag.StringVar(&flags.remoteClusterName, "remote-cluster-name", "", "Remote cluster name.")
 	flag.StringVar(&flags.kind, "kind", "", "Type Kind.")
 	flag.StringVar(&flags.group, "group", "", "Type API Group.")
 	flag.StringVar(&flags.version, "version", "", "Type API Version.")
-	flag.StringVar(&flags.remoteNamespaces, "remote-namespace", "", "Namespaces in the remote cluster to watch and sync to.")
+	flag.StringVar(&flags.remoteNamespaces, "remote-namespaces", "", "Namespaces in the remote cluster to watch and sync to.")
 	flag.StringVar(&flags.remoteClusterKubeconfig, "remote-cluster-kubeconfig", "/secret/remote-cluster-kubeconfig.yaml", "Remote cluster kubeconfig.")
 
 	flag.Parse()
@@ -96,9 +98,9 @@ func run() error {
 	if flags.kind == "" {
 		return fmt.Errorf("-kind must be set")
 	}
-	if flags.group == "" {
-		return fmt.Errorf("-group must be set")
-	}
+	// if flags.group == "" {
+	// 	return fmt.Errorf("-group must be set")
+	// }
 	if flags.version == "" {
 		return fmt.Errorf("-version must be set")
 	}
@@ -162,6 +164,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("creating remote cluster cache: %w", err)
 	}
+	if err := mgr.Add(remoteCache); err != nil {
+		return fmt.Errorf("adding remote cluster cache to manager: %w", err)
+	}
 	remoteCachedClient := &client.DelegatingClient{
 		Reader:       remoteCache,
 		Writer:       remoteClient,
@@ -177,8 +182,7 @@ func run() error {
 
 	// Index
 	if err := catapultv1alpha1.RegisterFieldIndexes(
-		context.Background(),
-		mgr.GetFieldIndexer(),
+		context.Background(), mgr.GetCache(),
 	); err != nil {
 		return fmt.Errorf("creating field indexer: %w", err)
 	}
@@ -202,9 +206,10 @@ func run() error {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		RemoteClient: remoteCachedClient,
-		RemoteCache:  remoteCache,
-		ObjectGVK:    objGVK,
+		RemoteClusterName: flags.remoteClusterName,
+		RemoteClient:      remoteCachedClient,
+		RemoteCache:       remoteCache,
+		ObjectGVK:         objGVK,
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create AdoptionReconciler controller: %w", err)
 	}

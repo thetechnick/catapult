@@ -1,0 +1,9 @@
+apiVersion: catapult.thetechnick.ninja/v1alpha1
+kind: RemoteNamespace
+metadata:
+  name: test.server
+spec:
+  remoteCluster:
+    name: server
+  namespaceInRemoteCluster:
+    name: test

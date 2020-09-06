@@ -135,11 +135,11 @@ const (
 
 // RemoteAPI configures the use of an API from a remote kubernetes cluster.
 // +kubebuilder:object:root=true
-// +kubebuilder:scope=Cluster
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Remote Cluster",type="string",JSONPath=".spec.remoteCluster.name"
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:shortName=rapi,categories=catapult
+// +kubebuilder:resource:shortName=rapi,categories=catapult,scope=Cluster
 type RemoteAPI struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -73,7 +73,7 @@ func (r *AdoptionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// Check RemoteNamespace to find the local namespace
 	remoteNamespaceList, err := catapultv1alpha1.ListRemoteNamespaceByRemoteNamespaceName(ctx, r.Client, obj.GetNamespace())
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("getting RemoteNamespace: %w", err)
+		return ctrl.Result{}, fmt.Errorf("getting RemoteNamespace for namespace %q in remote cluster: %w", obj.GetNamespace(), err)
 	}
 	var remoteNamespace *catapultv1alpha1.RemoteNamespace
 	for _, rns := range remoteNamespaceList.Items {
@@ -83,10 +83,10 @@ func (r *AdoptionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 	if remoteNamespace == nil {
-		return ctrl.Result{}, fmt.Errorf("RemoteNamespace not found")
+		return ctrl.Result{}, fmt.Errorf("RemoteNamespace not found for namespace %q in remote cluster", obj.GetNamespace())
 	}
 	if remoteNamespace.Status.GetCondition(
-		catapultv1alpha1.RemoteNamespaceBound).Status == catapultv1alpha1.ConditionTrue && remoteNamespace.Spec.Claim != nil {
+		catapultv1alpha1.RemoteNamespaceBound).Status != catapultv1alpha1.ConditionTrue || remoteNamespace.Spec.Claim == nil {
 		return ctrl.Result{}, fmt.Errorf("RemoteNamespace %s not bound", remoteNamespace.Name)
 	}
 	remoteNamespaceClaim := &catapultv1alpha1.RemoteNamespaceClaim{}
@@ -100,6 +100,7 @@ func (r *AdoptionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	desiredObject := obj.DeepCopy()
 	desiredObject.SetNamespace(remoteNamespaceClaim.Spec.LocalNamespace.Name)
 	desiredObject.SetOwnerReferences(nil)
+	desiredObject.SetResourceVersion("")
 
 	currentObj := r.newObject()
 	err = r.Get(ctx, types.NamespacedName{
@@ -120,7 +121,7 @@ func (r *AdoptionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *AdoptionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := controller.New(
-		strings.ToLower(r.ObjectGVK.Kind),
+		strings.ToLower(r.ObjectGVK.Kind+" adoption"),
 		mgr, controller.Options{
 			Reconciler: r,
 		})

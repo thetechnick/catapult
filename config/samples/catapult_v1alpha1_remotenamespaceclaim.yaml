@@ -1,0 +1,9 @@
+apiVersion: catapult.thetechnick.ninja/v1alpha1
+kind: RemoteNamespaceClaim
+metadata:
+  name: default
+spec:
+  remoteCluster:
+    name: server
+  localNamespace:
+    name: default

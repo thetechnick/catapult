@@ -1,6 +1,6 @@
 
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
@@ -8,10 +8,6 @@ metadata:
   creationTimestamp: null
   name: remotenamespaceclaims.catapult.thetechnick.ninja
 spec:
-  additionalPrinterColumns:
-  - JSONPath: .metadata.creationTimestamp
-    name: Age
-    type: date
   group: catapult.thetechnick.ninja
   names:
     categories:
@@ -20,55 +16,166 @@ spec:
     listKind: RemoteNamespaceClaimList
     plural: remotenamespaceclaims
     shortNames:
-    - rnc
+    - rnsc
     singular: remotenamespaceclaim
-  scope: Namespaced
-  subresources: {}
-  validation:
-    openAPIV3Schema:
-      description: RemoteNamespaceClaim is a user's request to bind to an RemoteNamespace.
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: RemoteNamespaceClaimSpec defines the desired state of RemoteNamespaceClaim.
-          properties:
-            remoteCluster:
-              description: RemoteCluster this claim is targeting.
-              properties:
-                name:
-                  type: string
-              required:
-              - name
-              type: object
-            remoteNamespace:
-              description: RemoteNamespace this Claim is bound to. Must be set when
-                the Claim is Bound.
-              properties:
-                name:
-                  type: string
-              required:
-              - name
-              type: object
-          required:
-          - remoteCluster
-          type: object
-      type: object
-  version: v1alpha1
+  scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.remoteNamespace.name
+      name: RemoteNamespace
+      type: string
+    - jsonPath: .status.phase
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RemoteNamespaceClaim is a user's request to bind to an RemoteNamespace.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RemoteNamespaceClaimSpec defines the desired state of RemoteNamespaceClaim.
+            properties:
+              localNamespace:
+                description: Reference to the Namespace in this cluster.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              remoteCluster:
+                description: RemoteCluster this claim is targeting.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              remoteNamespace:
+                description: RemoteNamespace this Claim is bound to. Must be set when
+                  the Claim is Bound.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              selector:
+                description: Limit available RemoteNamespaces for binding.
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: A label selector requirement is a selector that
+                        contains values, a key, and an operator that relates the key
+                        and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: operator represents a key's relationship to
+                            a set of values. Valid operators are In, NotIn, Exists
+                            and DoesNotExist.
+                          type: string
+                        values:
+                          description: values is an array of string values. If the
+                            operator is In or NotIn, the values array must be non-empty.
+                            If the operator is Exists or DoesNotExist, the values
+                            array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: matchLabels is a map of {key,value} pairs. A single
+                      {key,value} in the matchLabels map is equivalent to an element
+                      of matchExpressions, whose key field is "key", the operator
+                      is "In", and the values array contains only "value". The requirements
+                      are ANDed.
+                    type: object
+                type: object
+            required:
+            - remoteCluster
+            type: object
+          status:
+            description: RemoteNamespaceClaimStatus defines the observed state of
+              RemoteNamespaceClaim.
+            properties:
+              conditions:
+                description: Current conditions that apply to this instance.
+                items:
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time the condition
+                        transits from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message is the human readable message indicating
+                        details about last transition.
+                      type: string
+                    reason:
+                      description: Reason is the (brief) reason for the condition's
+                        last transition.
+                      type: string
+                    status:
+                      description: Status is the status of the condition, one of ('True',
+                        'False', 'Unknown').
+                      type: string
+                    type:
+                      description: Type is the type of the RemoteNamespaceClaim condition.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
+                type: integer
+              phase:
+                description: DEPRECATED. Phase represents the current lifecycle state
+                  of this object. Consider this field DEPRECATED, it will be removed
+                  as soon as there is a mechanism to map conditions to strings when
+                  printing the property. This is only for display purpose, for everything
+                  else use conditions.
+                type: string
+            type: object
+        type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

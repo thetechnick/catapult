@@ -51,15 +51,16 @@ type RemoteNamespaceClaimReconciler struct {
 func (r *RemoteNamespaceClaimReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("interfaceclaim", req.NamespacedName)
+	log.Info("reconcile start")
 
-	remoteNamespaceClient := &catapultv1alpha1.RemoteNamespaceClaim{}
-	if err := r.Get(ctx, req.NamespacedName, remoteNamespaceClient); err != nil {
+	remoteNamespaceClaim := &catapultv1alpha1.RemoteNamespaceClaim{}
+	if err := r.Get(ctx, req.NamespacedName, remoteNamespaceClaim); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Step 1:
 	// Check if already bound
-	if stop, err := r.checkAlreadyBound(ctx, log, remoteNamespaceClient); err != nil {
+	if stop, err := r.checkAlreadyBound(ctx, log, remoteNamespaceClaim); err != nil {
 		return ctrl.Result{}, err
 	} else if stop {
 		return ctrl.Result{}, nil
@@ -67,7 +68,7 @@ func (r *RemoteNamespaceClaimReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	// Step 2:
 	// Can we find an existing InterfaceInstance and bind to it?
-	if stop, err := r.tryToBindInstance(ctx, log, remoteNamespaceClient); err != nil {
+	if stop, err := r.tryToBindInstance(ctx, log, remoteNamespaceClaim); err != nil {
 		return ctrl.Result{}, err
 	} else if stop {
 		return ctrl.Result{}, nil
@@ -76,13 +77,13 @@ func (r *RemoteNamespaceClaimReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// Nothing matched :(
 	// Claim remains unbound
 	// retry later
-	remoteNamespaceClient.Status.SetCondition(catapultv1alpha1.RemoteNamespaceClaimCondition{
+	remoteNamespaceClaim.Status.SetCondition(catapultv1alpha1.RemoteNamespaceClaimCondition{
 		Type:    catapultv1alpha1.RemoteNamespaceClaimBound,
 		Status:  catapultv1alpha1.ConditionFalse,
 		Reason:  "NoMatchingInstance",
-		Message: "No matching instance found for the given parameters.",
+		Message: "No matching RemoteNamespace found for this claim.",
 	})
-	if err := r.Status().Update(ctx, remoteNamespaceClient); err != nil {
+	if err := r.Status().Update(ctx, remoteNamespaceClaim); err != nil {
 		return ctrl.Result{}, fmt.Errorf("updating RemoteNamespaceClaim: %w", err)
 	}
 	return ctrl.Result{
@@ -124,13 +125,11 @@ func (r *RemoteNamespaceClaimReconciler) checkAlreadyBound(
 	// Check Bound Reference
 	if claim.Spec.RemoteNamespace == nil {
 		return false, nil
-		// return false, fmt.Errorf("bound instance without Instance reference")
 	}
 
 	remoteNamespace := &catapultv1alpha1.RemoteNamespace{}
 	err = r.Get(ctx, types.NamespacedName{
-		Name:      claim.Spec.RemoteNamespace.Name,
-		Namespace: claim.Namespace,
+		Name: claim.Spec.RemoteNamespace.Name,
 	}, remoteNamespace)
 	if k8serrors.IsNotFound(err) {
 		// Reference lost
@@ -156,7 +155,10 @@ func (r *RemoteNamespaceClaimReconciler) checkAlreadyBound(
 		Reason:  "InstanceFound",
 		Message: "Bound RemoteNamespace can be found.",
 	})
-	return true, nil
+	if err = r.Status().Update(ctx, claim); err != nil {
+		return false, fmt.Errorf("updating claim status: %w", err)
+	}
+	return false, nil
 }
 
 // Try to find a matching InterfaceInstance and bind to it.
@@ -165,25 +167,24 @@ func (r *RemoteNamespaceClaimReconciler) tryToBindInstance(
 	log logr.Logger,
 	claim *catapultv1alpha1.RemoteNamespaceClaim,
 ) (stop bool, err error) {
-	instanceSelector, err := metav1.LabelSelectorAsSelector(&claim.Spec.Selector)
-	if err != nil {
-		// should have been covered by validation
-		return false, fmt.Errorf("parsing LabelSelector as Selector: %w", err)
-	}
-
 	if claim.Spec.RemoteNamespace == nil {
+		instanceSelector, err := metav1.LabelSelectorAsSelector(&claim.Spec.Selector)
+		if err != nil {
+			// should have been covered by validation
+			return false, fmt.Errorf("parsing LabelSelector as Selector: %w", err)
+		}
+
 		// Find a matching InterfaceInstance to bind to
 		remoteNamespaceList := &catapultv1alpha1.RemoteNamespaceList{}
 		if err := r.List(
 			ctx,
 			remoteNamespaceList,
-			client.InNamespace(claim.Namespace),
 			client.MatchingLabelsSelector{Selector: instanceSelector},
 		); err != nil {
 			return false, fmt.Errorf("listing InterfaceInstances: %w", err)
 		}
 		for _, remoteNamespace := range remoteNamespaceList.Items {
-			if claimMatchesInstance(log, claim, &remoteNamespace) {
+			if claimMatchesRemoteNamespace(log, claim, &remoteNamespace) {
 				claim.Spec.RemoteNamespace = &catapultv1alpha1.ObjectReference{
 					Name: remoteNamespace.Name,
 				}
@@ -203,23 +204,22 @@ func (r *RemoteNamespaceClaimReconciler) tryToBindInstance(
 		return false, fmt.Errorf("updating Claim: %w", err)
 	}
 
-	instance := &catapultv1alpha1.RemoteNamespace{}
+	remoteNamespace := &catapultv1alpha1.RemoteNamespace{}
 	if err = r.Get(ctx, types.NamespacedName{
-		Name:      claim.Spec.RemoteNamespace.Name,
-		Namespace: claim.Namespace,
-	}, instance); err != nil {
+		Name: claim.Spec.RemoteNamespace.Name,
+	}, remoteNamespace); err != nil {
 		return false, fmt.Errorf("getting supposed-to-be bound Instance: %w", err)
 	}
-	if instance.Spec.Claim != nil &&
-		instance.Spec.Claim.Name != claim.Name {
+	if remoteNamespace.Spec.Claim != nil &&
+		remoteNamespace.Spec.Claim.Name != claim.Name {
 		// oh-no! This is not supposed to happen.
 		return true, fmt.Errorf(
-			"tried to bind to instance %s already bound to claim %s: %w", instance.Name, instance.Spec.Claim.Name, err)
+			"tried to bind to RemoteNamespace %s already bound to claim %s: %w", remoteNamespace.Name, remoteNamespace.Spec.Claim.Name, err)
 	}
-	instance.Spec.Claim = &catapultv1alpha1.ObjectReference{
+	remoteNamespace.Spec.Claim = &catapultv1alpha1.ObjectReference{
 		Name: claim.Name,
 	}
-	if err = r.Update(ctx, instance); err != nil {
+	if err = r.Update(ctx, remoteNamespace); err != nil {
 		return false, fmt.Errorf("updating Instance: %w", err)
 	}
 
@@ -228,31 +228,32 @@ func (r *RemoteNamespaceClaimReconciler) tryToBindInstance(
 		Type:    catapultv1alpha1.RemoteNamespaceClaimBound,
 		Status:  catapultv1alpha1.ConditionTrue,
 		Reason:  "Bound",
-		Message: "Bound to instance.",
+		Message: "Bound to RemoteNamespace.",
 	})
 	if err = r.Status().Update(ctx, claim); err != nil {
 		return false, fmt.Errorf("update claim status: %w", err)
 	}
-	return
+	return true, nil
 }
 
-func claimMatchesInstance(
+func claimMatchesRemoteNamespace(
 	log logr.Logger,
 	claim *catapultv1alpha1.RemoteNamespaceClaim,
 	remoteNamespace *catapultv1alpha1.RemoteNamespace,
 ) bool {
-	// Check instance status
+	log.Info("checking claim against remotenamespace", "remote", remoteNamespace.Spec.RemoteCluster.Name, "claim", claim.Spec.RemoteCluster.Name)
+
+	// Check remote namespace status
 	bound := remoteNamespace.Status.GetCondition(catapultv1alpha1.RemoteNamespaceBound)
 	if bound.Status == catapultv1alpha1.ConditionTrue ||
-		remoteNamespace.Spec.Claim == nil ||
-		remoteNamespace.Spec.Claim.Name != "" {
+		remoteNamespace.Spec.Claim != nil {
 		// already bound
 		return false
 	}
 	if bound.Status == catapultv1alpha1.ConditionFalse &&
 		bound.Reason == "Released" {
 		// has been released from a previous claim
-		// Released instances need to be bound to a new claim explicitly
+		// Released remote namespaces need to be bound to a new claim explicitly
 		return false
 	}
 

@@ -166,12 +166,12 @@ const (
 
 // RemoteNamespace maps a
 // +kubebuilder:object:root=true
-// +kubebuilder:scope=Cluster
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Claim",type="string",JSONPath=".spec.claim.name"
+// +kubebuilder:printcolumn:name="Namespace in Remote Cluster",type="string",JSONPath=".spec.namespaceInRemoteCluster.name"
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:shortName=ii,categories=vedette
+// +kubebuilder:resource:shortName=rns,categories=vedette,scope=Cluster
 type RemoteNamespace struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

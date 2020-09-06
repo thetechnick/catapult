@@ -135,9 +135,11 @@ const (
 
 // RemoteNamespaceClaim is a user's request to bind to an RemoteNamespace.
 // +kubebuilder:object:root=true
-// +kubebuilder:scope=Cluster
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="RemoteNamespace",type="string",JSONPath=".spec.remoteNamespace.name"
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:shortName=rnc,categories=catapult
+// +kubebuilder:resource:shortName=rnsc,categories=catapult,scope=Cluster
 type RemoteNamespaceClaim struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

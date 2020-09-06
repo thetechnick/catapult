@@ -34,6 +34,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const catapultControllerFinalizer string = "catapult.thetechnick.ninja/agent"
@@ -93,7 +94,7 @@ func (r *SyncReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	desiredObject.SetNamespace(remoteNamespaceName)
 
 	currentObj := r.newObject()
-	err = r.Get(ctx, types.NamespacedName{
+	err = r.RemoteClient.Get(ctx, types.NamespacedName{
 		Name:      desiredObject.GetName(),
 		Namespace: desiredObject.GetNamespace(),
 	}, currentObj)
@@ -101,7 +102,7 @@ func (r *SyncReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, fmt.Errorf("getting %s: %w", r.ObjectGVK.Kind, err)
 	}
 	if k8serrors.IsNotFound(err) {
-		if err := r.Create(ctx, desiredObject); err != nil {
+		if err := r.RemoteClient.Create(ctx, desiredObject); err != nil {
 			return ctrl.Result{}, fmt.Errorf("creating %s: %w", r.ObjectGVK.Kind, err)
 		}
 	}
@@ -133,6 +134,10 @@ func (r *SyncReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			"updating %s: %w", r.ObjectGVK.Kind, err)
 	}
 
+	if _, ok := obj.Object["status"]; !ok {
+		return ctrl.Result{}, nil
+	}
+
 	// Sync Status from service cluster to management cluster
 	if err := unstructured.SetNestedField(
 		obj.Object,
@@ -155,10 +160,13 @@ func (r *SyncReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *SyncReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// return ctrl.NewControllerManagedBy(mgr).
-	// 	For(&catapultv1alpha1.Sync{}).
-	// 	Complete(r)
-	return nil
+	return ctrl.NewControllerManagedBy(mgr).
+		For(r.newObject()).
+		Watches(
+			source.NewKindWithCache(r.newObject(), r.RemoteCache),
+			owner.EnqueueRequestForOwner(r.newObject(), mgr.GetScheme()),
+		).
+		Complete(r)
 }
 
 func (r *SyncReconciler) newObject() *unstructured.Unstructured {
@@ -258,8 +266,18 @@ func (e *remoteNamespaceClaimNotFound) Error() string {
 	return fmt.Sprintf("RemoteNamespaceClaim for namespace %s not found", e.LocalNamespaceName)
 }
 
+func (e *remoteNamespaceClaimNotFound) Is(err error) bool {
+	_, ok := err.(*remoteNamespaceClaimNotFound)
+	return ok
+}
+
 type remoteNamespaceClaimNotBound struct {
 	Name string
+}
+
+func (e *remoteNamespaceClaimNotBound) Is(err error) bool {
+	_, ok := err.(*remoteNamespaceClaimNotBound)
+	return ok
 }
 
 func (e *remoteNamespaceClaimNotBound) Error() string {
